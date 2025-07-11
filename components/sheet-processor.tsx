@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Trash2 } from 'lucide-react';
+import { Trash2, XIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -30,11 +30,30 @@ import {
 } from "./ui/command"
 import { Badge } from "@/components/ui/badge";
 import clsx from 'clsx';
+import { MultiSelect } from "@/components/multiselect";
 
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1T8KrDYRM1nGBovTHpK-kNFLkZFkMsBhhedpRRlg35-w/export?format=csv&gid=1921491470";
 
 const TARGET_COLUMNS = ["Date", "Conduct_Name", "Pointers", "Submitted_By"];
+const ONESIR_COMPANIES_OPTIONS = [
+  { value: "ALPHA", label: "ALPHA", },
+  { value: "BRAVO", label: "BRAVO", },
+  { value: "CHARLIE", label: "CHARLIE", },
+  { value: "SUPPORT", label: "SUPPORT", },
+  { value: "MSC", label: "MSC", },
+];
+
+type TargetCol = (typeof TARGET_COLUMNS)[number];
+interface SheetRow extends Record<TargetCol | "Company", string> {}
+const ONESIR_COMPANIES_SHEETS: Record<string, string> = {
+  ALPHA : "https://docs.google.com/spreadsheets/d/1MfKz366shlm9TgaNz3H-LLSVp9GJxuYJsSFhDx5mpic/export?format=csv&gid=1921491470",
+  BRAVO : "https://docs.google.com/spreadsheets/d/1Ltj1zXeIpheSbJwYzqiuvyHiJHp3ksDP6X0sLR1ikl4/export?format=csv&gid=1921491470",
+  CHARLIE : "https://docs.google.com/spreadsheets/d/1tBvAlu1Fkyf5j8HZgvFbqSJ4CnAeeHspdRNNvqqGUJQ/export?format=csv&gid=1921491470",
+  SUPPORT : "https://docs.google.com/spreadsheets/d/1T8KrDYRM1nGBovTHpK-kNFLkZFkMsBhhedpRRlg35-w/export?format=csv&gid=1921491470",
+  MSC : "https://docs.google.com/spreadsheets/d/1UwoKYS6UxFHpRaCNJJkN6x7x8soTnbR7iDfImad8NmY/export?format=csv&gid=1921491470",
+}
+
 // Helper: Normalize conduct names like "STRENGTH & POWER 1" → "STRENGTH & POWER"
 function normalizeConduct(name: string) {
   return name.replace(/\s\d+$/, "").trim().toUpperCase();
@@ -93,59 +112,78 @@ export default function SheetProcessor() {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  // const [selectedDate, setSelectedDate] = useState("");
   const [selectedConduct, setSelectedConduct] = useState("");
   const [aiResponse, setAiResponse] = useState<FeedbackRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [openDatePopup, setOpenDatePopup] = useState(false);
   const [openConductPopup, setOpenConductPopup] = useState(false);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
 
-  const fetchAndParse = async () => {
+  const fetchAllSheets = async () => {
     setLoading(true);
+  
     try {
-      const response = await fetch(SHEET_URL);
-      const csvText = await response.text();
-
-      const { data } = Papa.parse<any>(csvText, {
-        header: true,
-        skipEmptyLines: true,
-      });
-
-      const filtered = data.map((row) => {
-        const filteredRow: Record<string, any> = {};
-        TARGET_COLUMNS.forEach((key) => {
-          filteredRow[key] = row[key] ?? "";
-        });
-        return filteredRow;
-      });
-
-      setSheetData(filtered);
-    } catch (error) {
-      console.error("Error fetching or parsing sheet:", error);
+      const entries = Object.entries(ONESIR_COMPANIES_SHEETS); 
+  
+      const allCompanyRows: SheetRow[][] = await Promise.all(
+        entries.map(async ([company, url]) => {
+          const csv = await fetch(url).then(r => r.text());
+  
+          const { data } = Papa.parse<Record<string, string>>(csv, {
+            header: true,
+            skipEmptyLines: true,
+          });
+  
+          return data.map(row => {
+            const filtered: SheetRow = {
+              Company: company,
+            } as SheetRow;
+  
+            TARGET_COLUMNS.forEach(col => {
+              filtered[col] = row[col] ?? "";
+            });
+  
+            return filtered;
+          });
+        })
+      );
+  
+      const mergedRows: SheetRow[] = allCompanyRows.flat();
+  
+      mergedRows.sort(
+        (a, b) => Number(new Date(b.Date)) - Number(new Date(a.Date))
+      );
+  
+      setSheetData(mergedRows);
+    } catch (err) {
+      console.error("Error fetching or parsing sheets:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAndParse();
+    fetchAllSheets();
   }, []);
 
   // Filter data based on current selection
   useEffect(() => {
-    const filtered = sheetData.filter((row) => {
-      // const matchesDate = !selectedDate || row.Date === selectedDate;
+    const filtered = sheetData.filter(row => {
+      // — Conduct filter —
       const matchesConduct =
-        !selectedConduct ||
-        normalizeConduct(row.Conduct_Name) === selectedConduct;
-      return matchesConduct;
+        !selectedConduct || normalizeConduct(row.Conduct_Name) === selectedConduct;
+  
+      // — Company filter —
+      const matchesCompany =
+        selectedCompanies.length === 0 ||          // none selected → keep all
+        selectedCompanies.includes(row.Company);   // otherwise match
+  
+      return matchesConduct && matchesCompany;
     });
-
+  
     setFilteredData(filtered);
-  }, [sheetData, selectedConduct]);
+  }, [sheetData, selectedConduct, selectedCompanies]);
 
   // Extract unique values for filtering
-  const uniqueDates = [...new Set(sheetData.map((r) => r.Date))];
   const uniqueConducts = [
     ...new Set(sheetData.map((r) => normalizeConduct(r.Conduct_Name))),
   ];
@@ -163,8 +201,8 @@ export default function SheetProcessor() {
           const pointerText = parsed
             .map(
               (p, i) => `Observation ${i + 1}: ${p.observation}
-  Reflection ${i + 1}: ${p.reflection}
-  Recommendation ${i + 1}: ${p.recommendation}`
+                Reflection ${i + 1}: ${p.reflection}
+                Recommendation ${i + 1}: ${p.recommendation}`
             )
             .join('\n\n');
   
@@ -216,55 +254,25 @@ export default function SheetProcessor() {
           <CardContent className="p-6 pt-0 space-y-4">
             <h1 className="text-xl font-bold">1 SIR PAR ANALYSER</h1>
             <div className="flex flex-wrap gap-4">
-              {/* <div>
-                <label className="block font-medium mb-1">Date</label>
-                <Popover open={openDatePopup} onOpenChange={setOpenDatePopup}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openDatePopup}
-                      className="w-[100px] justify-between"
-                    >
-                      {selectedDate
-                        ? uniqueDates.find((date) => date === selectedDate)
-                        : "Select date..."}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Search rank..." />
-                      <CommandList>
-                        <CommandEmpty>No date found.</CommandEmpty>
-                        <CommandGroup>
-                          {uniqueDates.map((date) => (
-                            <CommandItem
-                              key={date}
-                              value={date}
-                              onSelect={(value) => {
-                                setSelectedDate(value === selectedDate ? "" : value);
-                                setOpenDatePopup(false);
-                              }}
-                            >
-                              {date}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div> */}
+              <div className='flex'>
+                <MultiSelect
+                  options={ONESIR_COMPANIES_OPTIONS}
+                  onValueChange={setSelectedCompanies}
+                  className='mx-2 w-[75%] h-full'
+                  defaultValue={selectedCompanies}
+                  placeholder="Select Companies"
+                  variant="inverted"
+                  animation={2}
+                  maxCount={99}
+                />
 
-              <div>
-                {/* <label className="block font-medium mb-1">Conduct</label> */}
                 <Popover open={openConductPopup} onOpenChange={setOpenConductPopup}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={openConductPopup}
-                      className="w-[200px] justify-between truncate"
+                      className="w-[200px] h-full justify-between truncate"
                     >
                       {selectedConduct
                         ? uniqueConducts.find((date) => date === selectedConduct)
@@ -303,14 +311,14 @@ export default function SheetProcessor() {
                 </Popover>
 
                 <Button
-                    className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || !selectedConduct ? 'cursor-not-allowed' : 'pointer'}`}
+                    className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || !selectedConduct ? 'cursor-not-allowed' : 'pointer'}, h-full`}
                     onClick={handleGenerateFeedback}
                     disabled={submitting || filteredData.length === 0 || !selectedConduct}
                   >
                     {submitting ? 'Generating...' : 'Generate AI Analysis'}
                 </Button>
-
               </div>
+              
               {(selectedConduct) && (
                   <Button
                     variant="ghost"
@@ -324,23 +332,29 @@ export default function SheetProcessor() {
                   </Button>
                 )}
             </div>
-            
-            {filteredData.length > 0 && (
-            <ScrollArea className="max-h-[600px] overflow-auto border rounded-md">
-              <div className="min-w-[900px]">
+
+            <div>
               {Array.isArray(aiResponse) && aiResponse.length > 0 && (
                 <Card className='m-2'>
                   <CardContent className="px-4 space-y-4">
+                  <div className="flex justify-between items-center w-full">
                     <h2 className="font-medium text-lg">📝 Analysis</h2>
+                    <XIcon
+                      className="h-4 mx-2 cursor-pointer text-muted-foreground"
+                      onClick={(event) => {
+                        setAiResponse([]);
+                      }}
+                    />
+                  </div>
 
-                    <Table>
+                    <Table className='table-fixed w-full'>
                       <TableHeader>
                         <TableRow className='bg-stone-800'>
-                          <TableHead className="w-40">Category</TableHead>
-                          <TableHead>Issue</TableHead>
-                          <TableHead>Recommendation</TableHead>
-                          <TableHead className="text-center w-28">Severity</TableHead>
-                          <TableHead className="text-center w-28">Frequency</TableHead>
+                          <TableHead className="w-[10%] max-w-[10%]">Category</TableHead>
+                          <TableHead className="w-[30%] max-w-[30%]">Issue</TableHead>
+                          <TableHead className="w-[30%] max-w-[30%]">Recommendation</TableHead>
+                          <TableHead className="text-center w-[5%] max-w-[5%]">Severity</TableHead>
+                          <TableHead className="text-center w-[5%] max-w-[5%]">Frequency</TableHead>
                         </TableRow>
                       </TableHeader>
 
@@ -352,9 +366,9 @@ export default function SheetProcessor() {
                                 <TableCell rowSpan={items.length}>{category}</TableCell>
                               )}
 
-                              <TableCell>{item.issue}</TableCell>
+                              <TableCell className='!whitespace-normal break-words'>{item.issue}</TableCell>
 
-                              <TableCell>{item.recommendation}</TableCell>
+                              <TableCell className='!whitespace-normal break-words'>{item.recommendation}</TableCell>
 
                               <TableCell className="text-center">
                                 <Badge
@@ -379,12 +393,15 @@ export default function SheetProcessor() {
                           ))
                         )}
                       </TableBody>
-
                     </Table>
                   </CardContent>
                 </Card>
               )}
-
+            </div>
+            
+            {filteredData.length > 0 && (
+            <ScrollArea className="max-h-[600px] mx-2 overflow-auto border rounded-xl">
+              <div className="min-w-[900px]">
                 <Table>
                   <TableHeader>
                     <TableRow className='bg-stone-800'>
@@ -392,13 +409,14 @@ export default function SheetProcessor() {
                       <TableHead className='text-lg font-semibold'>Conduct</TableHead>
                       <TableHead className='text-lg font-semibold'>Pointers</TableHead>
                       <TableHead className='text-lg font-semibold'>Submitted By</TableHead>
+                      <TableHead className='text-lg font-semibold'>Company</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredData.map((row, i) => (
                       <TableRow key={i}>
                         <TableCell>{row.Date}</TableCell>
-                        <TableCell>{row.Conduct_Name}</TableCell>
+                        <TableCell>{row.Conduct_Name.toUpperCase()}</TableCell>
                         <TableCell className="space-y-2">
                           {parsePointers(row.Pointers).length > 0 ? (
                             parsePointers(row.Pointers).map((entry, idx) => (
@@ -425,6 +443,9 @@ export default function SheetProcessor() {
                         </TableCell>
                         <TableCell>
                           {row.Submitted_By.replace(/_/g, ' ').toUpperCase()}
+                        </TableCell>
+                        <TableCell className='text-center'>
+                          {row.Company}
                         </TableCell>
                       </TableRow>
                     ))}
