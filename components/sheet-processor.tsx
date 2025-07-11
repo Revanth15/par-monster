@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { SetStateAction, useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,9 +31,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import clsx from 'clsx';
 import { MultiSelect } from "@/components/multiselect";
-
-const SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1T8KrDYRM1nGBovTHpK-kNFLkZFkMsBhhedpRRlg35-w/export?format=csv&gid=1921491470";
 
 const TARGET_COLUMNS = ["Date", "Conduct_Name", "Pointers", "Submitted_By"];
 const ONESIR_COMPANIES_OPTIONS = [
@@ -117,6 +114,7 @@ export default function SheetProcessor() {
   const [submitting, setSubmitting] = useState(false);
   const [openConductPopup, setOpenConductPopup] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [uniqueConducts, setUniqueConducts] = useState<string[]>([]);
 
   const fetchAllSheets = async () => {
     setLoading(true);
@@ -167,26 +165,28 @@ export default function SheetProcessor() {
 
   // Filter data based on current selection
   useEffect(() => {
-    const filtered = sheetData.filter(row => {
-      // — Conduct filter —
+    const seenConducts = new Set<string>();
+    const filtered: typeof sheetData = [];
+  
+    sheetData.forEach((row) => {
+      const matchesCompany =
+        selectedCompanies.length === 0 || selectedCompanies.includes(row.Company);
+  
+      if (matchesCompany) {
+        seenConducts.add(normalizeConduct(row.Conduct_Name));
+      }
+  
       const matchesConduct =
         !selectedConduct || normalizeConduct(row.Conduct_Name) === selectedConduct;
   
-      // — Company filter —
-      const matchesCompany =
-        selectedCompanies.length === 0 ||          // none selected → keep all
-        selectedCompanies.includes(row.Company);   // otherwise match
-  
-      return matchesConduct && matchesCompany;
+      if (matchesCompany && matchesConduct) {
+        filtered.push(row);
+      }
     });
   
     setFilteredData(filtered);
+    setUniqueConducts([...seenConducts]);
   }, [sheetData, selectedConduct, selectedCompanies]);
-
-  // Extract unique values for filtering
-  const uniqueConducts = [
-    ...new Set(sheetData.map((r) => normalizeConduct(r.Conduct_Name))),
-  ];
 
   const handleGenerateFeedback = async () => {
     setSubmitting(true);
@@ -319,12 +319,13 @@ export default function SheetProcessor() {
                 </Button>
               </div>
               
-              {(selectedConduct) && (
+              {(selectedConduct || selectedCompanies.length > 0) && (
                   <Button
                     variant="ghost"
                     className="text-red-500 ml-auto flex items-center gap-2"
                     onClick={() => {
                       setSelectedConduct('');
+                      setSelectedCompanies([]);
                     }}
                   >
                     <Trash2 size={16} />
