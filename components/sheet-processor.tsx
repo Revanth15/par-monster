@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
@@ -13,21 +14,33 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
-import { Select } from "@/components/ui/select"; 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "./ui/command"
+import { Badge } from "@/components/ui/badge";
+import clsx from 'clsx';
 
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1T8KrDYRM1nGBovTHpK-kNFLkZFkMsBhhedpRRlg35-w/export?format=csv&gid=1921491470";
 
 const TARGET_COLUMNS = ["Date", "Conduct_Name", "Pointers", "Submitted_By"];
-// 🧩 Helper: Normalize conduct names like "STRENGTH & POWER 1" → "STRENGTH & POWER"
+// Helper: Normalize conduct names like "STRENGTH & POWER 1" → "STRENGTH & POWER"
 function normalizeConduct(name: string) {
-  return name.replace(/\s\d+$/, "").trim();
+  return name.replace(/\s\d+$/, "").trim().toUpperCase();
 }
 
-// 🧩 Helper: Parse the pointers text into structured entries
+// Helper: Parse the pointers text into structured entries
 function parsePointers(pointersText: string) {
   if (!pointersText) return [];
 
@@ -67,15 +80,25 @@ function parsePointers(pointersText: string) {
   return result;
 }
 
+interface FeedbackRow {
+  category: string;
+  issue: string;
+  recommendation: string;
+  severity: "High" | "Medium" | "Low" | string;
+  frequency: number;
+}
+
 
 export default function SheetProcessor() {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
+  // const [selectedDate, setSelectedDate] = useState("");
   const [selectedConduct, setSelectedConduct] = useState("");
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiResponse, setAiResponse] = useState<FeedbackRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [openDatePopup, setOpenDatePopup] = useState(false);
+  const [openConductPopup, setOpenConductPopup] = useState(false);
 
   const fetchAndParse = async () => {
     setLoading(true);
@@ -104,20 +127,24 @@ export default function SheetProcessor() {
     }
   };
 
-  // 💡 Filter data based on current selection
+  useEffect(() => {
+    fetchAndParse();
+  }, []);
+
+  // Filter data based on current selection
   useEffect(() => {
     const filtered = sheetData.filter((row) => {
-      const matchesDate = !selectedDate || row.Date === selectedDate;
+      // const matchesDate = !selectedDate || row.Date === selectedDate;
       const matchesConduct =
         !selectedConduct ||
         normalizeConduct(row.Conduct_Name) === selectedConduct;
-      return matchesDate && matchesConduct;
+      return matchesConduct;
     });
 
     setFilteredData(filtered);
-  }, [sheetData, selectedDate, selectedConduct]);
+  }, [sheetData, selectedConduct]);
 
-  // Extract unique values for filters
+  // Extract unique values for filtering
   const uniqueDates = [...new Set(sheetData.map((r) => r.Date))];
   const uniqueConducts = [
     ...new Set(sheetData.map((r) => normalizeConduct(r.Conduct_Name))),
@@ -125,7 +152,7 @@ export default function SheetProcessor() {
 
   const handleGenerateFeedback = async () => {
     setSubmitting(true);
-    setAiResponse(null);
+    setAiResponse([]);
   
     try {
       const formattedConducts = filteredData
@@ -154,91 +181,217 @@ export default function SheetProcessor() {
         body: JSON.stringify({ userMessage }),
       });
       const { result } = await res.json();
-      setAiResponse(result);      
+      let parsed: FeedbackRow[] = [];
+
+      if (typeof result === "string") {
+        const cleaned = result.trim()
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/```$/, "");
+        parsed = JSON.parse(cleaned) as FeedbackRow[];
+      } else if (Array.isArray(result)) {
+        parsed = result as FeedbackRow[];
+      }
+
+      setAiResponse(parsed);
       console.log('🧠 AI Feedback:', result);
     } catch (error) {
       console.error('Error generating feedback:', error);
-      setAiResponse('⚠️ Failed to fetch feedback.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const grouped = useMemo(() => {
+    const map: Record<string, FeedbackRow[]> = {};
+    aiResponse.forEach((row) => {
+      (map[row.category] ??= []).push(row);
+    });
+    return map;
+  }, [aiResponse]);
+
   return (
     <div className="space-y-6">
-      {/* Action Card */}
-      <Card>
-        <CardContent className="p-6 space-y-4">
-          <h1 className="text-xl font-semibold">📥 Fetch & Display Google Sheet</h1>
-          <Button onClick={fetchAndParse} disabled={loading}>
-            {loading ? "Loading..." : "Fetch Sheet Data"}
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Table Display */}
-      {filteredData.length > 0 && (
         <Card>
           <CardContent className="p-6 pt-0 space-y-4">
-            <h2 className="text-lg font-medium">📊 Conducts</h2>
+            <h1 className="text-xl font-bold">1 SIR PAR ANALYSER</h1>
             <div className="flex flex-wrap gap-4">
-              <div>
+              {/* <div>
                 <label className="block font-medium mb-1">Date</label>
-                <select
-                  className="border p-2 rounded"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                >
-                  <option value="">All Dates</option>
-                  {uniqueDates.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <Popover open={openDatePopup} onOpenChange={setOpenDatePopup}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openDatePopup}
+                      className="w-[100px] justify-between"
+                    >
+                      {selectedDate
+                        ? uniqueDates.find((date) => date === selectedDate)
+                        : "Select date..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search rank..." />
+                      <CommandList>
+                        <CommandEmpty>No date found.</CommandEmpty>
+                        <CommandGroup>
+                          {uniqueDates.map((date) => (
+                            <CommandItem
+                              key={date}
+                              value={date}
+                              onSelect={(value) => {
+                                setSelectedDate(value === selectedDate ? "" : value);
+                                setOpenDatePopup(false);
+                              }}
+                            >
+                              {date}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div> */}
 
               <div>
-                <label className="block font-medium mb-1">Conduct</label>
-                <select
-                  className="border p-2 rounded"
-                  value={selectedConduct}
-                  onChange={(e) => setSelectedConduct(e.target.value)}
-                >
-                  <option value="">All Conducts</option>
-                  {uniqueConducts.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                {/* <label className="block font-medium mb-1">Conduct</label> */}
+                <Popover open={openConductPopup} onOpenChange={setOpenConductPopup}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openConductPopup}
+                      className="w-[200px] justify-between truncate"
+                    >
+                      {selectedConduct
+                        ? uniqueConducts.find((date) => date === selectedConduct)
+                        : "Select conduct..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search conduct..." />
+                      <CommandList>
+                        <CommandEmpty>No conduct found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="All Conducts"
+                            onSelect={(value) => {
+                              setSelectedConduct(value === selectedConduct ? "" : value);
+                              setOpenConductPopup(false);
+                            }}
+                          ></CommandItem>
+                          {uniqueConducts.map((conduct) => (
+                            <CommandItem
+                              key={conduct}
+                              value={conduct}
+                              onSelect={(value) => {
+                                setSelectedConduct(value === selectedConduct ? "" : value);
+                                setOpenConductPopup(false);
+                              }}
+                            >
+                              {conduct}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
-                <Button onClick={handleGenerateFeedback} disabled={submitting || filteredData.length === 0}>
-                  {submitting ? 'Generating...' : '🧠 Generate AI Feedback'}
+                <Button
+                    className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || !selectedConduct ? 'cursor-not-allowed' : 'pointer'}`}
+                    onClick={handleGenerateFeedback}
+                    disabled={submitting || filteredData.length === 0 || !selectedConduct}
+                  >
+                    {submitting ? 'Generating...' : 'Generate AI Analysis'}
                 </Button>
+
               </div>
-            </div>
-            <ScrollArea className="max-h-[500px] overflow-auto border rounded-md">
-              <div className="min-w-[900px]">
-              {aiResponse && (
-                  <Card>
-                    <CardContent className="p-4 space-y-2">
-                      <h3 className="font-medium text-lg">📝 AI Feedback</h3>
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {aiResponse}
-                        </ReactMarkdown>
-                      </div>
-                    </CardContent>
-                  </Card>
+              {(selectedConduct) && (
+                  <Button
+                    variant="ghost"
+                    className="text-red-500 ml-auto flex items-center gap-2"
+                    onClick={() => {
+                      setSelectedConduct('');
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    Clear Filters
+                  </Button>
                 )}
+            </div>
+            
+            {filteredData.length > 0 && (
+            <ScrollArea className="max-h-[600px] overflow-auto border rounded-md">
+              <div className="min-w-[900px]">
+              {Array.isArray(aiResponse) && aiResponse.length > 0 && (
+                <Card className='m-2'>
+                  <CardContent className="px-4 space-y-4">
+                    <h2 className="font-medium text-lg">📝 Analysis</h2>
+
+                    <Table>
+                      <TableHeader>
+                        <TableRow className='bg-stone-800'>
+                          <TableHead className="w-40">Category</TableHead>
+                          <TableHead>Issue</TableHead>
+                          <TableHead>Recommendation</TableHead>
+                          <TableHead className="text-center w-28">Severity</TableHead>
+                          <TableHead className="text-center w-28">Frequency</TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {Object.entries(grouped).map(([category, items]) =>
+                          items.map((item, idx) => (
+                            <TableRow key={`${category}-${idx}`}>
+                              {idx === 0 && (
+                                <TableCell rowSpan={items.length}>{category}</TableCell>
+                              )}
+
+                              <TableCell>{item.issue}</TableCell>
+
+                              <TableCell>{item.recommendation}</TableCell>
+
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant="secondary"
+                                  className={clsx(
+                                    "px-2",
+                                    item.severity === "High" && "bg-red-600 text-white",
+                                    item.severity === "Medium" && "bg-orange-500 text-white",
+                                    item.severity === "Low" && "bg-green-500 text-white"
+                                  )}
+                                >
+                                  {item.severity}
+                                </Badge>
+                              </TableCell>
+
+                              <TableCell className="text-center">
+                                <Badge variant="secondary" className="bg-gray-500 px-2">
+                                  {item.frequency}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Conduct</TableHead>
-                      <TableHead>Pointers</TableHead>
-                      <TableHead>Submitted By</TableHead>
+                    <TableRow className='bg-stone-800'>
+                      <TableHead className='text-lg font-semibold'>Date</TableHead>
+                      <TableHead className='text-lg font-semibold'>Conduct</TableHead>
+                      <TableHead className='text-lg font-semibold'>Pointers</TableHead>
+                      <TableHead className='text-lg font-semibold'>Submitted By</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -270,16 +423,18 @@ export default function SheetProcessor() {
                             <span className="text-muted-foreground italic">No PAR Pointers</span>
                           )}
                         </TableCell>
-                        <TableCell>{row.Submitted_By}</TableCell>
+                        <TableCell>
+                          {row.Submitted_By.replace(/_/g, ' ').toUpperCase()}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </ScrollArea>
+            )}
           </CardContent>
         </Card>
-      )}
     </div>
   );
 }

@@ -2,8 +2,8 @@ import SheetProcessor from "@/components/sheet-processor";
 
 export default function Home() {
   return (
-    <div className="p-5">
-      <SheetProcessor />
-    </div>
+      <div className="p-5 bg-neutral-800 w-full h-full">
+        <SheetProcessor />
+      </div>
   );
 }
