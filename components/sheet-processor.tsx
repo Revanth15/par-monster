@@ -483,8 +483,8 @@ export default function SheetProcessor() {
                       <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Date</TableHead>
                       <TableHead className='text-lg font-semibold w-[30px] min-w-[30px] max-w-[30px]'>Conduct</TableHead>
                       <TableHead className='text-lg font-semibold w-[300px] min-w-[300px] max-w-[300px]'>Pointers</TableHead>
-                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Submitted By</TableHead>
-                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Company</TableHead>
+                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px] text-center'>Submitted By</TableHead>
+                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px] text-center'>Company</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -516,7 +516,7 @@ export default function SheetProcessor() {
                             <span className="text-muted-foreground italic">No PAR Pointers</span>
                           )}
                         </TableCell>
-                        <TableCell className='!whitespace-normal break-words'>
+                        <TableCell className='!whitespace-normal break-words text-center'>
                           {row.Submitted_By.replace(/_/g, ' ').toUpperCase()}
                         </TableCell>
                         <TableCell className='text-center'>

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     },
     "categorisation_criteria": {
       "Conducting Body": "Refers to those responsible for organising, planning, and overseeing the overall conduct. This includes administrative errors, planning oversights, and coordination failures.",
-      "Commanders": "Refers to auxiliary or support commanders (e.g., section ICs, duty personnel) assisting with the execution. Issues may relate to poor leadership, unclear briefings, or failure to enforce standards.",
+      "Commanders": "Refers to auxiliary or support commanders (e.g., section commanderss, duty personnel) assisting with the execution. Issues may relate to poor leadership, unclear briefings, or failure to enforce standards.",
       "Participants": "Refers to those taking part in the conduct as trainees or attendees. Issues may include punctuality, discipline, preparedness, or understanding of instructions."
     },
     "output_format": "json_array",
