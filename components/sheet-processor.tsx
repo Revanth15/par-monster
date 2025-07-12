@@ -51,8 +51,47 @@ const ONESIR_COMPANIES_SHEETS: Record<string, string> = {
   MSC : "https://docs.google.com/spreadsheets/d/1UwoKYS6UxFHpRaCNJJkN6x7x8soTnbR7iDfImad8NmY/export?format=csv&gid=1921491470",
 }
 
-// Helper: Normalize conduct names like "STRENGTH & POWER 1" → "STRENGTH & POWER"
-function normalizeConduct(name: string) {
+const normalizeDict: { [key: string]: string } = {
+  's&p': 'STRENGTH AND POWER',
+  'strength & power': 'STRENGTH AND POWER',
+  'strength and power': 'STRENGTH AND POWER',
+  'endurance run': 'ENDURANCE RUN',
+  'er': 'ENDURANCE RUN',
+  'endurance run base': 'ENDURANCE RUN',
+  'endurance run tempo': 'ENDURANCE RUN',
+  'endurance run intervals': 'ENDURANCE RUN',
+  'distance intervals': 'DISTANCE INTERVAL',
+  'distance interval': 'DISTANCE INTERVAL',
+  'di': 'DISTANCE INTERVAL',
+  'acfc': 'ARMY COMBAT FITNESS CHECK',
+  'army combat fitness check': 'ARMY COMBAT FITNESS CHECK',
+  'acct': "ACCT",
+  'sports & games': "SPORTS AND GAMES",
+  'sports and games': "SPORTS AND GAMES",
+  'rm': "ROUTE MARCH",
+  'route march': "ROUTE MARCH",
+  'mc': "METABOLIC CIRCUIT",
+  'metabolic circuit': "METABOLIC CIRCUIT",
+  'metabolic circuits': "METABOLIC CIRCUIT",
+};
+
+function normalizeConduct(name: string): string {
+  const sanitizedName = name
+    .trim()
+    .replace(/\s\d+(\s\d+)*$/, "") // Remove trailing numbers
+    .replace(/\s?\(.*\)$/, "")     // Remove text inside parentheses (including the parentheses)
+    .replace(/\s\d+(\s\d+)*$/, "") // Remove trailing numbers
+    .trim()
+    .toLowerCase();
+
+  // Look for the sanitized name in the dictionary
+  const normalized = normalizeDict[sanitizedName];
+
+  if (normalized) {
+    return normalized;
+  }
+  // console.log(name, sanitizedName)
+  // If not found in dictionary, default to capitalizing the original name
   return name.replace(/\s\d+$/, "").trim().toUpperCase();
 }
 
@@ -275,7 +314,7 @@ export default function SheetProcessor() {
                       className="w-[200px] h-full justify-between truncate"
                     >
                       {selectedConduct
-                        ? uniqueConducts.find((date) => date === selectedConduct)
+                        ? uniqueConducts.find((conduct) => conduct === selectedConduct)
                         : "Select conduct..."}
                     </Button>
                   </PopoverTrigger>

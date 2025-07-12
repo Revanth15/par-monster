@@ -49,11 +49,13 @@ export async function POST(req: NextRequest) {
       "Use the categorisation criteria to assign the correct category to each issue."
     ]
   }
-
-
-
   `;
-    console.log(userMessage)
+
+  // "severity_criteria": {
+  //     "High": "",
+  //     "Medium": "",
+  //     "Low": ""
+  //   }
   const completion = await openai.chat.completions.create({
     model: 'deepseek-v3',
     messages: [
