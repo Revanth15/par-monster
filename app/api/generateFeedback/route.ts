@@ -9,7 +9,6 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   const { userMessage } = await req.json();
-
   const systemMessage = `
 
   {

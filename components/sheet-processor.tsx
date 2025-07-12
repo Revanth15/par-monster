@@ -27,10 +27,13 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "./ui/command"
 import { Badge } from "@/components/ui/badge";
 import clsx from 'clsx';
 import { MultiSelect } from "@/components/multiselect";
+import { Checkbox } from './ui/checkbox';
+import { Separator } from './ui/separator';
 
 const TARGET_COLUMNS = ["Date", "Conduct_Name", "Pointers", "Submitted_By"];
 const ONESIR_COMPANIES_OPTIONS = [
@@ -148,7 +151,7 @@ export default function SheetProcessor() {
   const [sheetData, setSheetData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedConduct, setSelectedConduct] = useState("");
+  const [selectedConducts, setSelectedConducts] = useState<string[]>([]);
   const [aiResponse, setAiResponse] = useState<FeedbackRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [openConductPopup, setOpenConductPopup] = useState(false);
@@ -216,7 +219,8 @@ export default function SheetProcessor() {
       }
   
       const matchesConduct =
-        !selectedConduct || normalizeConduct(row.Conduct_Name) === selectedConduct;
+        selectedConducts.length === 0 ||
+        selectedConducts.includes(normalizeConduct(row.Conduct_Name));
   
       if (matchesCompany && matchesConduct) {
         filtered.push(row);
@@ -225,7 +229,7 @@ export default function SheetProcessor() {
   
     setFilteredData(filtered);
     setUniqueConducts([...seenConducts]);
-  }, [sheetData, selectedConduct, selectedCompanies]);
+  }, [sheetData, selectedConducts, selectedCompanies]);
 
   const handleGenerateFeedback = async () => {
     setSubmitting(true);
@@ -288,7 +292,6 @@ export default function SheetProcessor() {
 
   return (
     <div className="space-y-6">
-      {/* Table Display */}
         <Card>
           <CardContent className="p-6 pt-0 space-y-4">
             <h1 className="text-xl font-bold">1 SIR PAR ANALYSER</h1>
@@ -313,57 +316,88 @@ export default function SheetProcessor() {
                       aria-expanded={openConductPopup}
                       className="w-[200px] h-full justify-between truncate"
                     >
-                      {selectedConduct
-                        ? uniqueConducts.find((conduct) => conduct === selectedConduct)
-                        : "Select conduct..."}
+                      {selectedConducts.length > 0
+                        ? selectedConducts.join(", ")
+                        : "Select conducts..."}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Search conduct..." />
-                      <CommandList>
-                        <CommandEmpty>No conduct found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="All Conducts"
-                            onSelect={(value) => {
-                              setSelectedConduct(value === selectedConduct ? "" : value);
-                              setOpenConductPopup(false);
-                            }}
-                          ></CommandItem>
-                          {uniqueConducts.map((conduct) => (
-                            <CommandItem
-                              key={conduct}
-                              value={conduct}
-                              onSelect={(value) => {
-                                setSelectedConduct(value === selectedConduct ? "" : value);
-                                setOpenConductPopup(false);
-                              }}
+                  <PopoverContent className="w-[250px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search conducts..." />
+                        <CommandList>
+                          <CommandEmpty>No conduct found.</CommandEmpty>
+                          <CommandGroup>
+                            {uniqueConducts.map((conduct) => (
+                              <CommandItem
+                                key={conduct}
+                                value={conduct}
+                                onSelect={(value) => {
+                                  setSelectedConducts((prevSelected) => {
+                                    if (prevSelected.includes(value)) {
+                                      return prevSelected.filter((item) => item !== value);
+                                    } else {
+                                      return [...prevSelected, value];
+                                    }
+                                  });
+                                }}
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    checked={selectedConducts.includes(conduct)}
+                                    className="h-4 w-4"
+                                  />
+                                  <span>{conduct}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                      <Separator/>
+                      <div className="flex items-center justify-between">
+                        {selectedConducts.length > 0 && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              className="flex-1 justify-center w-full text-red-500 cursor-pointer"
+                              onClick={() => setSelectedConducts([])}
+                              >
+                              Clear
+                            </Button>
+                            <Separator
+                              orientation="vertical"
+                              className="flex min-h-6 h-full"
+                            />
+                          </>
+                        )}
+                        <Button
+                            variant="ghost"
+                            className="flex-1 justify-center cursor-pointer max-w-full"
+                            onClick={() => setOpenConductPopup(false)}
                             >
-                              {conduct}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
+                            Close
+                        </Button>
+                      </div>
                   </PopoverContent>
                 </Popover>
 
+
                 <Button
-                    className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || !selectedConduct ? 'cursor-not-allowed' : 'pointer'}, h-full`}
-                    onClick={handleGenerateFeedback}
-                    disabled={submitting || filteredData.length === 0 || !selectedConduct}
-                  >
-                    {submitting ? 'Generating...' : 'Generate AI Analysis'}
+                  className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || selectedConducts.length === 0 ? 'cursor-not-allowed' : 'pointer'}`}
+                  onClick={handleGenerateFeedback}
+                  disabled={submitting || filteredData.length === 0 || selectedConducts.length === 0}
+                >
+                  {submitting ? 'Generating...' : 'Generate AI Analysis'}
                 </Button>
               </div>
               
-              {(selectedConduct || selectedCompanies.length > 0) && (
+              {(selectedConducts.length > 0 || selectedCompanies.length > 0) && (
                   <Button
                     variant="ghost"
                     className="text-red-500 ml-auto flex items-center gap-2"
                     onClick={() => {
-                      setSelectedConduct('');
+                      setSelectedConducts([]);
                       setSelectedCompanies([]);
                     }}
                   >

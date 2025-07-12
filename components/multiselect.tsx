@@ -227,13 +227,13 @@ export const MultiSelect = React.forwardRef<
                           <IconComponent className="h-4 w-4 mr-2" />
                         )}
                         {option?.label}
-                        <XCircle
+                        {/* <XCircle
                           className="ml-2 h-4 w-4 cursor-pointer"
                           onClick={(event) => {
                             event.stopPropagation();
                             toggleOption(value);
                           }}
-                        />
+                        /> */}
                       </Badge>
                     );
                   })}
@@ -345,7 +345,7 @@ export const MultiSelect = React.forwardRef<
                     <>
                       <CommandItem
                         onSelect={handleClear}
-                        className="flex-1 justify-center cursor-pointer"
+                        className="flex-1 justify-center cursor-pointer text-red-500"
                       >
                         Clear
                       </CommandItem>
