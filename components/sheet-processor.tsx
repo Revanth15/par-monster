@@ -300,7 +300,7 @@ export default function SheetProcessor() {
                 <MultiSelect
                   options={ONESIR_COMPANIES_OPTIONS}
                   onValueChange={setSelectedCompanies}
-                  className="ml-2 mt-2 w-full sm:w-[75%] h-full"
+                  className="sm:ml-2 mt-2 w-full sm:max-w-[450px] h-full"
                   defaultValue={selectedCompanies}
                   placeholder="Select Companies"
                   variant="inverted"
@@ -314,7 +314,7 @@ export default function SheetProcessor() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={openConductPopup}
-                      className="ml-2 mt-2 w-full sm:w-[40%] h-full justify-between truncate"
+                      className="sm:ml-2 mt-2 w-full sm:max-w-[300px] h-full justify-between truncate"
                     >
                       {selectedConducts.length > 0
                         ? selectedConducts.join(", ")
@@ -380,7 +380,7 @@ export default function SheetProcessor() {
                 </Popover>
 
                 <Button
-                  className={`ml-2 mt-2 sm:w-[40%] h-full cursor-pointer ${
+                  className={`sm:ml-2 mt-2 w-full sm:max-w-[250px] h-full cursor-pointer ${
                     submitting || filteredData.length === 0 || selectedConducts.length === 0
                       ? "cursor-not-allowed"
                       : "pointer"
