@@ -295,12 +295,12 @@ export default function SheetProcessor() {
         <Card>
           <CardContent className="p-6 pt-0 space-y-4">
             <h1 className="text-xl font-bold">1 SIR PAR ANALYSER</h1>
-            <div className="flex flex-wrap gap-4">
-              <div className='flex'>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 w-full">
+              <div className="flex flex-col sm:flex-row">
                 <MultiSelect
                   options={ONESIR_COMPANIES_OPTIONS}
                   onValueChange={setSelectedCompanies}
-                  className='mx-2 w-[75%] h-full'
+                  className="ml-2 mt-2 w-full sm:w-[75%] h-full"
                   defaultValue={selectedCompanies}
                   placeholder="Select Companies"
                   variant="inverted"
@@ -314,7 +314,7 @@ export default function SheetProcessor() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={openConductPopup}
-                      className="w-[200px] h-full justify-between truncate"
+                      className="ml-2 mt-2 w-full sm:w-[40%] h-full justify-between truncate"
                     >
                       {selectedConducts.length > 0
                         ? selectedConducts.join(", ")
@@ -322,90 +322,91 @@ export default function SheetProcessor() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[250px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search conducts..." />
-                        <CommandList>
-                          <CommandEmpty>No conduct found.</CommandEmpty>
-                          <CommandGroup>
-                            {uniqueConducts.map((conduct) => (
-                              <CommandItem
-                                key={conduct}
-                                value={conduct}
-                                onSelect={(value) => {
-                                  setSelectedConducts((prevSelected) => {
-                                    if (prevSelected.includes(value)) {
-                                      return prevSelected.filter((item) => item !== value);
-                                    } else {
-                                      return [...prevSelected, value];
-                                    }
-                                  });
-                                }}
-                                className="flex items-center justify-between"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    checked={selectedConducts.includes(conduct)}
-                                    className="h-4 w-4"
-                                  />
-                                  <span>{conduct}</span>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                      <Separator/>
-                      <div className="flex items-center justify-between">
-                        {selectedConducts.length > 0 && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              className="flex-1 justify-center w-full text-red-500 cursor-pointer"
-                              onClick={() => setSelectedConducts([])}
-                              >
-                              Clear
-                            </Button>
-                            <Separator
-                              orientation="vertical"
-                              className="flex min-h-6 h-full"
-                            />
-                          </>
-                        )}
-                        <Button
-                            variant="ghost"
-                            className="flex-1 justify-center cursor-pointer max-w-full"
-                            onClick={() => setOpenConductPopup(false)}
+                    <Command>
+                      <CommandInput placeholder="Search conducts..." />
+                      <CommandList>
+                        <CommandEmpty>No conduct found.</CommandEmpty>
+                        <CommandGroup>
+                          {uniqueConducts.map((conduct) => (
+                            <CommandItem
+                              key={conduct}
+                              value={conduct}
+                              onSelect={(value) => {
+                                setSelectedConducts((prevSelected) => {
+                                  if (prevSelected.includes(value)) {
+                                    return prevSelected.filter((item) => item !== value);
+                                  } else {
+                                    return [...prevSelected, value];
+                                  }
+                                });
+                              }}
+                              className="flex items-center justify-between"
                             >
-                            Close
-                        </Button>
-                      </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  checked={selectedConducts.includes(conduct)}
+                                  className="h-4 w-4"
+                                />
+                                <span>{conduct}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      {selectedConducts.length > 0 && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            className="flex-1 justify-center w-full text-red-500 cursor-pointer"
+                            onClick={() => setSelectedConducts([])}
+                          >
+                            Clear
+                          </Button>
+                          <Separator orientation="vertical" className="flex min-h-6 h-full" />
+                        </>
+                      )}
+                      <Button
+                        variant="ghost"
+                        className="flex-1 justify-center cursor-pointer max-w-full"
+                        onClick={() => setOpenConductPopup(false)}
+                      >
+                        Close
+                      </Button>
+                    </div>
                   </PopoverContent>
                 </Popover>
 
-
                 <Button
-                  className={`ml-2 cursor-pointer ${submitting || filteredData.length === 0 || selectedConducts.length === 0 ? 'cursor-not-allowed' : 'pointer'}`}
+                  className={`ml-2 mt-2 sm:w-[40%] h-full cursor-pointer ${
+                    submitting || filteredData.length === 0 || selectedConducts.length === 0
+                      ? "cursor-not-allowed"
+                      : "pointer"
+                  }`}
                   onClick={handleGenerateFeedback}
                   disabled={submitting || filteredData.length === 0 || selectedConducts.length === 0}
                 >
-                  {submitting ? 'Generating...' : 'Generate AI Analysis'}
+                  {submitting ? "Generating..." : "Generate AI Analysis"}
                 </Button>
               </div>
-              
+
               {(selectedConducts.length > 0 || selectedCompanies.length > 0) && (
-                  <Button
-                    variant="ghost"
-                    className="text-red-500 ml-auto flex items-center gap-2"
-                    onClick={() => {
-                      setSelectedConducts([]);
-                      setSelectedCompanies([]);
-                    }}
-                  >
-                    <Trash2 size={16} />
-                    Clear Filters
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  className="text-red-500 ml-auto flex items-center gap-2"
+                  onClick={() => {
+                    setSelectedConducts([]);
+                    setSelectedCompanies([]);
+                  }}
+                >
+                  <Trash2 size={16} />
+                  Clear Filters
+                </Button>
+              )}
             </div>
+
 
             <div>
               {Array.isArray(aiResponse) && aiResponse.length > 0 && (
@@ -474,23 +475,23 @@ export default function SheetProcessor() {
             </div>
             
             {filteredData.length > 0 && (
-            <ScrollArea className="max-h-[600px] mx-2 overflow-auto border rounded-xl">
-              <div className="min-w-[900px]">
-                <Table>
+            // <ScrollArea className="max-h-[600px] mx-2 overflow-auto border rounded-xl">
+              <div className="w-full max-h-[76vh] overflow-auto">
+                <Table className='w-full'>
                   <TableHeader>
                     <TableRow className='bg-stone-800'>
-                      <TableHead className='text-lg font-semibold'>Date</TableHead>
-                      <TableHead className='text-lg font-semibold'>Conduct</TableHead>
-                      <TableHead className='text-lg font-semibold'>Pointers</TableHead>
-                      <TableHead className='text-lg font-semibold'>Submitted By</TableHead>
-                      <TableHead className='text-lg font-semibold'>Company</TableHead>
+                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Date</TableHead>
+                      <TableHead className='text-lg font-semibold w-[30px] min-w-[30px] max-w-[30px]'>Conduct</TableHead>
+                      <TableHead className='text-lg font-semibold w-[300px] min-w-[300px] max-w-[300px]'>Pointers</TableHead>
+                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Submitted By</TableHead>
+                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Company</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredData.map((row, i) => (
                       <TableRow key={i}>
                         <TableCell>{row.Date}</TableCell>
-                        <TableCell>{row.Conduct_Name.toUpperCase()}</TableCell>
+                        <TableCell className='!whitespace-normal break-words'>{row.Conduct_Name.toUpperCase()}</TableCell>
                         <TableCell className="space-y-2">
                           {parsePointers(row.Pointers).length > 0 ? (
                             parsePointers(row.Pointers).map((entry, idx) => (
@@ -515,7 +516,7 @@ export default function SheetProcessor() {
                             <span className="text-muted-foreground italic">No PAR Pointers</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className='!whitespace-normal break-words'>
                           {row.Submitted_By.replace(/_/g, ' ').toUpperCase()}
                         </TableCell>
                         <TableCell className='text-center'>
@@ -526,7 +527,7 @@ export default function SheetProcessor() {
                   </TableBody>
                 </Table>
               </div>
-            </ScrollArea>
+            // </ScrollArea>
             )}
           </CardContent>
         </Card>
