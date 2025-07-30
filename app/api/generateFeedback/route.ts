@@ -39,14 +39,35 @@ export async function POST(req: NextRequest) {
         "severity": "Low | Medium | High - based on the impact of the issue on the conduct"
       }
     },
+    "error_prevention": {
+      "common_mistakes_to_avoid": [
+        "Mixing categories for similar issues",
+        "Creating vague or generic recommendations", 
+        "Inconsistent frequency counting",
+        "Using subjective language in issue descriptions",
+        "Omitting required fields or using null values"
+      ],
+      "quality_checks": [
+        "Verify each issue maps to exactly one category using the decision tree",
+        "Confirm frequency count by re-scanning all PAR pointers",
+        "Ensure recommendations are specific and actionable.",
+        "Recommendations can be combined together if they address the same issue to prevent reclassification of the same issue.",
+        "Check that severity aligns with defined criteria"
+      ]
+    },
+    "frequency_counting_rules": {
+      "exact_match": "Count as same issue if keywords and context are identical",
+      "semantic_similarity": "Count as same issue if core problem is equivalent (e.g., 'late arrival' and 'punctuality issues' / "improper form" and "incorrect form")",
+      "threshold": "Issues are considered similar if they address the same root cause or have the same solution"
+    },
     "instructions": [
       "Do not repeat or restate the original PAR pointers.",
       "Avoid personal opinions, assumptions, or speculative reasoning.",
       "Summarise only what's evident from the facts provided.",
-      "Group similar issues together and increment the frequency counter accordingly.",
+      "Group similar issues together and increment the frequency counter accordingly. You may combine the issue and reccomendations as well to make things clearer.",
       "Use plain text in each field; do not return markdown or HTML formatting.",
-      "Use the categorisation criteria to assign the correct category to each issue."
-    ]
+      "Use the categorisation criteria to assign the correct category to each issue.",
+    ],
   }
   `;
 

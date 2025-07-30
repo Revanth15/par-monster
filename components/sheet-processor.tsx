@@ -5,7 +5,6 @@ import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Trash2, XIcon } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableHeader,
@@ -34,6 +33,12 @@ import clsx from 'clsx';
 import { MultiSelect } from "@/components/multiselect";
 import { Checkbox } from './ui/checkbox';
 import { Separator } from './ui/separator';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const TARGET_COLUMNS = ["Date", "Conduct_Name", "Pointers", "Submitted_By"];
 const ONESIR_COMPANIES_OPTIONS = [
@@ -56,9 +61,13 @@ const ONESIR_COMPANIES_SHEETS: Record<string, string> = {
 
 const normalizeDict: { [key: string]: string } = {
   's&p': 'STRENGTH AND POWER',
+  's&p sst': 'STRENGTH AND POWER',
   'strength & power': 'STRENGTH AND POWER',
   'strength and power': 'STRENGTH AND POWER',
+  'strength & power sst': 'STRENGTH AND POWER',
+  'strength and power sst': 'STRENGTH AND POWER',
   'endurance run': 'ENDURANCE RUN',
+  'endurance run sst': 'ENDURANCE RUN',
   'er': 'ENDURANCE RUN',
   'endurance run base': 'ENDURANCE RUN',
   'endurance run tempo': 'ENDURANCE RUN',
@@ -81,21 +90,21 @@ const normalizeDict: { [key: string]: string } = {
 function normalizeConduct(name: string): string {
   const sanitizedName = name
     .trim()
-    .replace(/\s\d+(\s\d+)*$/, "") // Remove trailing numbers
-    .replace(/\s?\(.*\)$/, "")     // Remove text inside parentheses (including the parentheses)
-    .replace(/\s\d+(\s\d+)*$/, "") // Remove trailing numbers
+    .replace(/\d+/g, "")             // Remove all digits
+    .replace(/\s?\([^)]*\)/g, "")      // Remove text inside parentheses (including the parentheses)
+    .replace(/\s{2,}/g, " ")         // Replace multiple spaces with a single space
     .trim()
     .toLowerCase();
 
-  // Look for the sanitized name in the dictionary
+    // console.log("Normalizing conduct:", name, "->", sanitizedName);
+
   const normalized = normalizeDict[sanitizedName];
 
   if (normalized) {
     return normalized;
   }
-  // console.log(name, sanitizedName)
-  // If not found in dictionary, default to capitalizing the original name
-  return name.replace(/\s\d+$/, "").trim().toUpperCase();
+
+  return sanitizedName.toUpperCase(); // Changed to return the sanitized name uppercased
 }
 
 // Helper: Parse the pointers text into structured entries
@@ -157,6 +166,7 @@ export default function SheetProcessor() {
   const [openConductPopup, setOpenConductPopup] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [uniqueConducts, setUniqueConducts] = useState<string[]>([]);
+  const [isTableOpen, setTableIsOpen] = useState(false);
 
   const fetchAllSheets = async () => {
     setLoading(true);
@@ -436,7 +446,7 @@ export default function SheetProcessor() {
                       <TableBody>
                         {Object.entries(grouped).map(([category, items]) =>
                           items.map((item, idx) => (
-                            <TableRow key={`${category}-${idx}`}>
+                            <TableRow key={`${category}-${idx}`} className="odd:bg-neutral-800">
                               {idx === 0 && (
                                 <TableCell rowSpan={items.length}>{category}</TableCell>
                               )}
@@ -473,61 +483,67 @@ export default function SheetProcessor() {
                 </Card>
               )}
             </div>
+
+            <Separator className="my-4" />
             
             {filteredData.length > 0 && (
-            // <ScrollArea className="max-h-[600px] mx-2 overflow-auto border rounded-xl">
-              <div className="w-full max-h-[76vh] overflow-auto">
-                <Table className='w-full'>
-                  <TableHeader>
-                    <TableRow className='bg-stone-800'>
-                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px]'>Date</TableHead>
-                      <TableHead className='text-lg font-semibold w-[30px] min-w-[30px] max-w-[30px]'>Conduct</TableHead>
-                      <TableHead className='text-lg font-semibold w-[300px] min-w-[300px] max-w-[300px]'>Pointers</TableHead>
-                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px] text-center'>Submitted By</TableHead>
-                      <TableHead className='text-lg font-semibold w-[20px] min-w-[20px] max-w-[20px] text-center'>Company</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredData.map((row, i) => (
-                      <TableRow key={i}>
-                        <TableCell>{row.Date}</TableCell>
-                        <TableCell className='!whitespace-normal break-words'>{row.Conduct_Name.toUpperCase()}</TableCell>
-                        <TableCell className="space-y-2">
-                          {parsePointers(row.Pointers).length > 0 ? (
-                            parsePointers(row.Pointers).map((entry, idx) => (
-                              <Card
-                                key={idx}
-                                className="p-3 space-y-2 sm:max-w-md md:max-w-lg lg:max-w-xl"
-                              >
-                                <CardContent className="space-y-1 text-sm text-wrap">
-                                  <div>
-                                    <strong>Observation:</strong> {entry.observation}
-                                  </div>
-                                  <div>
-                                    <strong>Reflection:</strong> {entry.reflection}
-                                  </div>
-                                  <div>
-                                    <strong>Recommendation:</strong> {entry.recommendation}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground italic">No PAR Pointers</span>
-                          )}
-                        </TableCell>
-                        <TableCell className='!whitespace-normal break-words text-center'>
-                          {row.Submitted_By.replace(/_/g, ' ').toUpperCase()}
-                        </TableCell>
-                        <TableCell className='text-center'>
-                          {row.Company}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            // </ScrollArea>
+              <Accordion type="single" collapsible>
+                <AccordionItem value="table-view">
+                  <AccordionTrigger className="mb-4 px-4 py-2 bg-neutral-900 text-white rounded hover:bg-neutral-800 hover:no-underline transition">
+                    Display Table
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="w-full max-h-[76vh] overflow-auto">
+                      <Table className="w-full">
+                        <TableHeader>
+                          <TableRow className="bg-stone-800">
+                            <TableHead className="text-lg font-semibold w-[20px]">Date</TableHead>
+                            <TableHead className="text-lg font-semibold w-[30px]">Conduct</TableHead>
+                            <TableHead className="text-lg font-semibold w-[300px]">Pointers</TableHead>
+                            <TableHead className="text-lg font-semibold w-[20px] text-center">Submitted By</TableHead>
+                            <TableHead className="text-lg font-semibold w-[20px] text-center">Company</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredData.map((row, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{row.Date}</TableCell>
+                              <TableCell className="!whitespace-normal break-words">
+                                {row.Conduct_Name.toUpperCase()}
+                              </TableCell>
+                              <TableCell className="space-y-2">
+                                {parsePointers(row.Pointers).length > 0 ? (
+                                  parsePointers(row.Pointers).map((entry, idx) => (
+                                    <Card key={idx} className="p-3 space-y-2 sm:max-w-md md:max-w-lg lg:max-w-xl">
+                                      <CardContent className="space-y-1 text-sm text-wrap">
+                                        <div>
+                                          <strong>Observation:</strong> {entry.observation}
+                                        </div>
+                                        <div>
+                                          <strong>Reflection:</strong> {entry.reflection}
+                                        </div>
+                                        <div>
+                                          <strong>Recommendation:</strong> {entry.recommendation}
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground italic">No PAR Pointers</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="!whitespace-normal break-words text-center">
+                                {row.Submitted_By.replace(/_/g, " ").toUpperCase()}
+                              </TableCell>
+                              <TableCell className="text-center">{row.Company}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             )}
           </CardContent>
         </Card>

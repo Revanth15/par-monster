@@ -6,6 +6,14 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-y: scroll; /* Always reserve space for scrollbar */
+}
+
+body {
+  scrollbar-gutter: stable; /* Optional: newer property for better control */
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
